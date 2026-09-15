@@ -306,17 +306,3 @@ Feed behavior:
 ```text
 User requests AAPL daily -> AAPL/1d is saved in watched_symbols -> feed refreshes AAPL/1d on schedule
 ```
-
-Recommended larger flow:
-
-```text
-Next.js frontend -> finance API -> PostgreSQL
-                         |
-                         v
-                 market-data-service
-                         |
-                         v
-              Stooq / yfinance / OpenBB
-```
-
-Stooq is the safest first provider because it is simple CSV data. `yfinance` is useful for coverage but depends on unofficial Yahoo endpoints. OpenBB is powerful but heavy, so this service only integrates with it optionally.
