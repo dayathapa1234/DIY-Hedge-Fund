@@ -275,34 +275,3 @@ Database schema is documented in:
 ```text
 migrations/001_init.sql
 ```
-
-## Microservice Role
-
-This service should be called by your finance app backend or a data-ingestion worker. When `DATABASE_URL` is configured, it stores only symbols that users requested. It does not pre-load the whole market.
-
-Cache behavior:
-
-```text
-Redis -> PostgreSQL -> external providers
-```
-
-If `REDIS_ADDR` is not configured or Redis is unavailable, the service automatically uses in-memory cache instead.
-
-Persistence tables:
-
-```text
-watched_symbols: symbol, interval, provider, first_requested_at, last_requested_at, last_refreshed_at
-price_bars: symbol, interval, ts, provider, open, high, low, close, adj_close, volume
-```
-
-The `price_bars` primary key is:
-
-```text
-symbol, interval, ts, provider
-```
-
-Feed behavior:
-
-```text
-User requests AAPL daily -> AAPL/1d is saved in watched_symbols -> feed refreshes AAPL/1d on schedule
-```
