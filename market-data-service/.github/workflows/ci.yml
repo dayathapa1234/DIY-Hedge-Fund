@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: market-data-service/go.mod
+          cache-dependency-path: market-data-service/go.sum
+      - name: Check formatting
+        working-directory: market-data-service
+        run: test -z "$(gofmt -l .)"
+      - name: Test
+        working-directory: market-data-service
+        run: go test ./...
+      - name: Build
+        working-directory: market-data-service
+        run: go build ./cmd/market-data-service
+      - name: Docker build
+        working-directory: market-data-service
+        run: docker build .

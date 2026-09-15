@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file:
+      - ./market-data-service/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    env_file:
+      - ./market-data-service/.env
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  market-data-migrate:
+    build:
+      context: ./market-data-service
+    env_file:
+      - ./market-data-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      LOG_OUTPUT: stdout
+    command: ["migrate"]
+
+  market-data-service:
+    build:
+      context: ./market-data-service
+    restart: unless-stopped
+    env_file:
+      - ./market-data-service/.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      market-data-migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./market-data-service/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/readyz', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,0 +1,34 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/*
+!logs/.gitkeep
+*.log
+
+# Go build/test outputs
+bin/
+dist/
+tmp/
+coverage.out
+coverage.html
+*.test
+market-data-service
+market-data-service.exe
+
+# Dependencies/vendor generated on demand
+vendor/
+
+# Docker/local data
+.docker/
+docker-data/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/

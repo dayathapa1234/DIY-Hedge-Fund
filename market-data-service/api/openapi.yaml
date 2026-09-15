@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: Market Data Service
+  version: 0.1.0
+  description: Historical market price microservice with provider priority, caching, persistence, and feed refresh.
+servers:
+  - url: http://localhost:8080
+paths:
+  /livez:
+    get:
+      summary: Liveness check
+      responses:
+        "200": { description: Process is alive }
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        "200": { description: Service is ready }
+        "503": { description: Dependency unavailable }
+  /v1/prices/historical:
+    get:
+      summary: Get historical prices
+      parameters:
+        - $ref: '#/components/parameters/Symbol'
+        - $ref: '#/components/parameters/Provider'
+        - $ref: '#/components/parameters/Providers'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Interval'
+      responses:
+        "200":
+          description: Historical prices
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HistoricalResult' }
+        "400": { description: Invalid request }
+        "429": { description: Rate limit exceeded }
+        "502": { description: Providers failed }
+  /v1/prices/latest:
+    get:
+      summary: Get latest price
+      parameters:
+        - $ref: '#/components/parameters/Symbol'
+        - $ref: '#/components/parameters/Provider'
+        - $ref: '#/components/parameters/Providers'
+        - $ref: '#/components/parameters/Interval'
+      responses:
+        "200": { description: Latest price }
+        "400": { description: Invalid request }
+        "502": { description: Providers failed }
+  /v1/prices/historical/batch:
+    post:
+      summary: Get historical prices for multiple symbols
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbols]
+              properties:
+                symbols:
+                  type: array
+                  items: { type: string }
+                  example: [AAPL, MSFT]
+                provider: { type: string }
+                providers:
+                  type: array
+                  items: { type: string }
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+                interval: { type: string, example: 1d }
+      responses:
+        "200": { description: Map of symbol to result or error }
+  /v1/providers:
+    get:
+      summary: Provider status
+      responses:
+        "200": { description: Provider status }
+  /v1/config:
+    get:
+      summary: Runtime configuration
+      responses:
+        "200": { description: Runtime config }
+  /version:
+    get:
+      summary: Version metadata
+      responses:
+        "200":
+          description: Build and version metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  serviceName: { type: string }
+                  version: { type: string }
+                  commit: { type: string }
+                  buildTime: { type: string }
+  /v1/symbols/search:
+    get:
+      summary: Search symbols
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, example: apple }
+      responses:
+        "200": { description: Search results }
+        "400": { description: Invalid request }
+  /v1/symbols:
+    get:
+      summary: List symbols
+      description: Returns all known symbols with optional search, filtering, sorting, and pagination.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string, example: apple }
+        - name: exchange
+          in: query
+          required: false
+          schema: { type: string, example: NASDAQ }
+        - name: currency
+          in: query
+          required: false
+          schema: { type: string, example: USD }
+        - name: provider
+          in: query
+          required: false
+          schema: { type: string, example: local }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, enum: [symbol, name, exchange, currency, provider], default: symbol }
+        - name: order
+          in: query
+          required: false
+          schema: { type: string, enum: [asc, desc], default: asc }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200": { description: Symbol list }
+        "400": { description: Invalid request }
+    post:
+      summary: Add symbol
+      description: Adds or replaces a runtime-local symbol so it appears in symbol listing and search responses.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol]
+              properties:
+                symbol: { type: string, example: IBM }
+                name: { type: string, example: International Business Machines }
+                exchange: { type: string, example: NYSE }
+                currency: { type: string, example: USD }
+                provider: { type: string, example: local }
+      responses:
+        "201": { description: Symbol added }
+        "400": { description: Invalid request }
+  /metrics:
+    get:
+      summary: Prometheus-style metrics
+      responses:
+        "200":
+          description: Metrics text
+          content:
+            text/plain:
+              schema: { type: string }
+  /swagger/openapi.yaml:
+    get:
+      summary: OpenAPI YAML
+      responses:
+        "200": { description: OpenAPI document }
+components:
+  parameters:
+    Symbol:
+      name: symbol
+      in: query
+      required: true
+      schema: { type: string, example: AAPL }
+    Provider:
+      name: provider
+      in: query
+      required: false
+      schema: { type: string, enum: [stooq, yfinance, openbb] }
+    Providers:
+      name: providers
+      in: query
+      required: false
+      schema: { type: string, example: yfinance,stooq,openbb }
+    From:
+      name: from
+      in: query
+      required: false
+      schema: { type: string, format: date, example: "2024-01-01" }
+    To:
+      name: to
+      in: query
+      required: false
+      schema: { type: string, format: date, example: "2024-01-31" }
+    Interval:
+      name: interval
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo, hourly, daily, weekly, monthly]
+        default: 1d
+  schemas:
+    HistoricalResult:
+      type: object
+      properties:
+        symbol: { type: string, example: AAPL }
+        requestedSymbol: { type: string, example: AAPL }
+        resolvedSymbol: { type: string, example: AAPL }
+        provider: { type: string, example: yfinance }
+        interval: { type: string, example: 1d }
+        source: { type: string, enum: [cache, database, provider] }
+        cacheHit: { type: boolean }
+        persisted: { type: boolean }
+        stale: { type: boolean }
+        dataQuality: { type: object }
+        prices:
+          type: array
+          items: { $ref: '#/components/schemas/PriceBar' }
+    PriceBar:
+      type: object
+      properties:
+        date: { type: string, format: date-time }
+        open: { type: number }
+        high: { type: number }
+        low: { type: number }
+        close: { type: number }
+        adjClose: { type: number }
+        volume: { type: integer, format: int64 }
+    ErrorResponse:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
